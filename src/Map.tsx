@@ -2,8 +2,8 @@ import * as React from 'react';
 import * as Konva from 'konva';
 
 export interface MapProps {
-  compiler: string;
-  framework: string;
+  zoom?: number;
+  imageUrl: string;
 }
 
 // https://github.com/jackmoore/wheelzoom/blob/master/wheelzoom.js
@@ -11,160 +11,178 @@ export interface MapProps {
 export class Map extends React.Component<MapProps, undefined> {
 
   id: string = 'test';
+
+  imageReference: HTMLImageElement;
+
   stage: Konva.Stage;
   layer: Konva.Layer;
 
-  backgroundImage: Konva.Image;
-  imageObj: HTMLImageElement;
+  height: number; // height of the canvas element
+  width: number; // width of the canvas element
 
-  height: number;
-  width: number;
-  x: number = 0;
-  y: number = 0;
+  backgroundHeight: number;     // height of the image
+  backgroundWidth: number;      // width of the image
+  backgroundX: number;          // x position of the image
+  backgroundY: number;          // y position of the image
+  backgroundImage: Konva.Image; // canvas image object
 
-  zoomLevel: number = 0.05;
-  zoom: number = 1;
+  previousEvent: MouseEvent;
 
-  resize = (event : Event) => {
+  constructor(props : MapProps) {
+    super(props);
 
-    const ratioX = this.width / window.innerWidth;
-    const ratioY = this.width / window.innerHeight;
-
-    this.x /= ratioX;
-    this.y /= ratioY;
-
-    this.setSizes();
-    this.checkBorders();
-    this.draw();
+    this.imageReference = new Image();
+    this.imageReference.src = props.imageUrl;
   }
 
-  setSizes = () => {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
-    this.stage.setSize({
-      width: this.width,
-      height: this.height
-    });
+  static defaultProps = {
+    zoom: 0.10
   }
 
-  draw = () => {
-    this.backgroundImage
-      .setSize({
-        width: this.imageObj.width * this.zoom,
-        height: this.imageObj.height * this.zoom
-      })
-      .setAbsolutePosition({
-        x: this.x,
-        y: this.y
-      })
-      .draw();
+  reset = () => {
+    this.backgroundWidth = this.width;
+    this.backgroundHeight = this.height;
+    this.backgroundX = this.backgroundY = 0;
+    this.updateBackground();
   }
 
-  scroll = (event : MouseWheelEvent) => {
+  onwheel = (e : any) => {
+    const event : MouseWheelEvent = e.evt;
 
-    var zoomChange = 0;
+    let deltaY = 0;
 
     event.preventDefault();
 
     if (event.deltaY) { // FireFox 17+ (IE9+, Chrome 31+?)
-      zoomChange = event.deltaY;
+      deltaY = event.deltaY;
     } else if (event.wheelDelta) {
-      zoomChange = -event.wheelDelta;
+      deltaY = -event.wheelDelta;
     }
 
-    const deltaX = event.pageX - (this.width / 2);
-    const deltaY = event.pageY - (this.height / 2);
+    // As far as I know, there is no good cross-browser way to get the cursor position relative to the event target.
+    // We have to calculate the target element's position relative to the document, and subtrack that from the
+    // cursor's position relative to the document.
+    const rect = this.imageReference.getBoundingClientRect();
+    const offsetX = event.pageX - rect.left - window.pageXOffset;
+    const offsetY = event.pageY - rect.top - window.pageYOffset;
 
-    this.x -= deltaX;
-    this.y -= deltaY;
+    // Record the offset between the bg edge and cursor:
+    const bgCursorX = offsetX - this.backgroundX;
+    const bgCursorY = offsetY - this.backgroundY;
+
+    // Use the previous offset to get the percent offset between the bg edge and cursor:
+    const bgRatioX = bgCursorX / this.backgroundWidth;
+    const bgRatioY = bgCursorY / this.backgroundHeight;
 
     // Update the bg size:
-    if (zoomChange < 0) {
-      this.zoom += this.zoomLevel;
+    if (deltaY < 0) {
+      this.backgroundWidth += this.backgroundWidth * this.props.zoom;
+      this.backgroundHeight += this.backgroundHeight * this.props.zoom;
     } else {
-      this.zoom -= this.zoomLevel;
+      this.backgroundWidth -= this.backgroundWidth * this.props.zoom;
+      this.backgroundHeight -= this.backgroundHeight * this.props.zoom;
     }
 
-    this.checkBorders();
-    this.draw();
+    // Take the percent offset and apply it to the new size:
+    this.backgroundX = offsetX - (this.backgroundWidth * bgRatioX);
+    this.backgroundY = offsetY - (this.backgroundHeight * bgRatioY);
+
+    // Prevent zooming out beyond the starting size
+    if (this.backgroundWidth <= this.width || this.backgroundHeight <= this.height) {
+      this.reset();
+    } else {
+      this.updateBackground();
+    }
   }
 
-  dragMap = () => {
+  updateBackground = () => {
+    if (this.backgroundX > 0) {
+      this.backgroundX = 0;
+    } else if (this.backgroundX < this.width - this.backgroundWidth) {
+      this.backgroundX = this.width - this.backgroundWidth;
+    }
 
-    let position = null;
+    if (this.backgroundY > 0) {
+      this.backgroundY = 0;
+    } else if (this.backgroundY < this.height - this.backgroundHeight) {
+      this.backgroundY = this.height - this.backgroundHeight;
+    }
 
-    this.backgroundImage.on('mousemove', (e) => {
-      const event = e.evt;
-      if (position) {
-        this.x += event.clientX - position.x;
-        this.y += event.clientY - position.y;
+    this.backgroundImage
+      .setAbsolutePosition({
+        x: this.backgroundX,
+        y: this.backgroundY
+      })
+      .setSize({
+        height: this.backgroundHeight,
+        width: this.backgroundWidth
+      })
+      .draw();
+  }
 
-        this.checkBorders();
-        this.draw();
-      }
+  drag = (e) => {
+    const event : MouseEvent = e.evt;
+    event.preventDefault();
+    this.backgroundX += (event.pageX - this.previousEvent.pageX);
+    this.backgroundY += (event.pageY - this.previousEvent.pageY);
+    this.previousEvent = event;
+    this.updateBackground();
+  }
 
-      position = {
-        x: event.clientX,
-        y: event.clientY
-      };
+  removeDrag = () => {
+    this.backgroundImage.off('mousemove');
+    this.backgroundImage.off('mouseup');
+  }
 
-      this.backgroundImage.on('mouseup', () => {
-        this.backgroundImage.off('mousemove');
-        this.backgroundImage.off('mouseup');
-      });
+  // Make the background draggable
+  draggable = (e) => {
+    const event : MouseEvent = e.evt;
+    event.preventDefault();
+    this.previousEvent = event;
+    this.backgroundImage.on('mousemove', this.drag.bind(this));
+    this.backgroundImage.on('mouseup', this.removeDrag.bind(this));
+  }
+
+  load = () => {
+    this.height = window.innerHeight;
+    this.width = window.innerWidth;
+
+    this.backgroundHeight = this.height;
+    this.backgroundWidth = this.width;
+
+    this.backgroundX = 0;
+    this.backgroundY = 0;
+
+    this.backgroundImage = new Konva.Image({
+        x: this.backgroundX,
+        y: this.backgroundY,
+        image: this.imageReference,
+        width: this.backgroundWidth,
+        height: this.backgroundHeight
     });
-  }
 
-  checkBorders = () => {
-    this.x = this.x > 0 ? 0 : this.x;
-    this.y = this.y > 0 ? 0 : this.y;
+    this.backgroundImage.on('wheel', this.onwheel.bind(this));
+    this.backgroundImage.on('mousedown', this.draggable.bind(this));
 
-    this.x = this.x < (this.width - this.imageObj.width * this.zoom) ? (this.width - this.imageObj.width * this.zoom) : this.x;
-    this.y = this.y < (this.height - this.imageObj.height * this.zoom) ? (this.height - this.imageObj.height * this.zoom) : this.y;
+    this.stage = new Konva.Stage({
+      container: this.id,
+      width: this.width,
+      height: this.height
+    });
+    this.layer = new Konva.Layer();
+
+    this.layer.add(this.backgroundImage);
+    this.stage.add(this.layer);
   }
 
   componentDidMount() {
-    this.stage = new Konva.Stage({
-      container: this.id
-    });
-
-    this.setSizes();
-
-    this.layer = new Konva.Layer();
-
-    this.imageObj = new Image();
-    this.imageObj.onload = () => {
-
-      this.zoom = Math.max(this.height / this.imageObj.height, this.width / this.imageObj.width);
-
-      this.x = (this.width - this.imageObj.width * this.zoom) / 2;
-      this.y = (this.height - this.imageObj.height * this.zoom) / 2;
-
-      this.backgroundImage = new Konva.Image({
-        x: this.x,
-        y: this.y,
-        image: this.imageObj,
-        width: this.imageObj.width * this.zoom,
-        height: this.imageObj.height * this.zoom
-      });
-      // add the shape to the layer
-      this.layer.add(this.backgroundImage);
-      // add the layer to the stage
-      this.stage.add(this.layer);
-
-      this.backgroundImage.on('mousedown', this.dragMap.bind(this));
-    };
-    this.imageObj.src = require('./test.jpg');
-
-    // add the layer to the stage
-    this.stage.add(this.layer);
-
-    window.addEventListener('resize', this.resize.bind(this), false);
-    window.addEventListener('mousewheel', this.scroll.bind(this), false);
+    if (this.imageReference.complete) {
+      this.load();
+    }
+    this.imageReference.addEventListener('load', this.load.bind(this));
   }
 
   render() {
-
     return (
       <div id={this.id}>
       </div>

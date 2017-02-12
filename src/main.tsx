@@ -9,7 +9,7 @@ const MOUNT_NODE = document.getElementById('root');
 
 let render = () => {
   ReactDOM.render(
-    <Map compiler="test" framework="frame" />,
+    <Map imageUrl={require('./test.jpg')} />,
     MOUNT_NODE
   );
 };
