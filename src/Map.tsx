@@ -6,6 +6,8 @@ export interface MapProps {
   framework: string;
 }
 
+// https://github.com/jackmoore/wheelzoom/blob/master/wheelzoom.js
+
 export class Map extends React.Component<MapProps, undefined> {
 
   id: string = 'test';
@@ -20,14 +22,71 @@ export class Map extends React.Component<MapProps, undefined> {
   x: number = 0;
   y: number = 0;
 
+  zoomLevel: number = 0.05;
+  zoom: number = 1;
 
   resize = (event : Event) => {
+
+    const ratioX = this.width / window.innerWidth;
+    const ratioY = this.width / window.innerHeight;
+
+    this.x /= ratioX;
+    this.y /= ratioY;
+
+    this.setSizes();
+    this.checkBorders();
+    this.draw();
+  }
+
+  setSizes = () => {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.stage.setSize({
       width: this.width,
       height: this.height
     });
+  }
+
+  draw = () => {
+    this.backgroundImage
+      .setSize({
+        width: this.imageObj.width * this.zoom,
+        height: this.imageObj.height * this.zoom
+      })
+      .setAbsolutePosition({
+        x: this.x,
+        y: this.y
+      })
+      .draw();
+  }
+
+  scroll = (event : MouseWheelEvent) => {
+
+    var zoomChange = 0;
+
+    event.preventDefault();
+
+    if (event.deltaY) { // FireFox 17+ (IE9+, Chrome 31+?)
+      zoomChange = event.deltaY;
+    } else if (event.wheelDelta) {
+      zoomChange = -event.wheelDelta;
+    }
+
+    const deltaX = event.pageX - (this.width / 2);
+    const deltaY = event.pageY - (this.height / 2);
+
+    this.x -= deltaX;
+    this.y -= deltaY;
+
+    // Update the bg size:
+    if (zoomChange < 0) {
+      this.zoom += this.zoomLevel;
+    } else {
+      this.zoom -= this.zoomLevel;
+    }
+
+    this.checkBorders();
+    this.draw();
   }
 
   dragMap = () => {
@@ -39,23 +98,9 @@ export class Map extends React.Component<MapProps, undefined> {
       if (position) {
         this.x += event.clientX - position.x;
         this.y += event.clientY - position.y;
-        if (this.x > 0) {
-          this.x = 0;
-        }
-        if (this.y > 0) {
-          this.y = 0;
-        }
-        if (((-1) * this.x + this.width) > this.imageObj.width) {
-          this.x = (this.imageObj.width - this.width) * -1;
-        }
-        if (((-1) * this.y + this.height) > this.imageObj.height) {
-          this.y = (this.imageObj.height - this.height) * -1;
-        }
-        this.backgroundImage.setAbsolutePosition({
-          x: this.x,
-          y: this.y
-        });
-        this.backgroundImage.draw();
+
+        this.checkBorders();
+        this.draw();
       }
 
       position = {
@@ -70,47 +115,52 @@ export class Map extends React.Component<MapProps, undefined> {
     });
   }
 
-  componentDidMount() {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
+  checkBorders = () => {
+    this.x = this.x > 0 ? 0 : this.x;
+    this.y = this.y > 0 ? 0 : this.y;
 
+    this.x = this.x < (this.width - this.imageObj.width * this.zoom) ? (this.width - this.imageObj.width * this.zoom) : this.x;
+    this.y = this.y < (this.height - this.imageObj.height * this.zoom) ? (this.height - this.imageObj.height * this.zoom) : this.y;
+  }
+
+  componentDidMount() {
     this.stage = new Konva.Stage({
-      container: this.id,
-      width: this.width,
-      height: this.height
+      container: this.id
     });
+
+    this.setSizes();
 
     this.layer = new Konva.Layer();
 
     this.imageObj = new Image();
     this.imageObj.onload = () => {
 
-      let ratio = 1;
+      this.zoom = Math.max(this.height / this.imageObj.height, this.width / this.imageObj.width);
 
-      if (this.imageObj.height < this.height) {
-        ratio = this.height / this.imageObj.height;
-      }
+      this.x = (this.width - this.imageObj.width * this.zoom) / 2;
+      this.y = (this.height - this.imageObj.height * this.zoom) / 2;
 
       this.backgroundImage = new Konva.Image({
-        x: 0,
-        y: 0,
+        x: this.x,
+        y: this.y,
         image: this.imageObj,
-        width: this.imageObj.width * ratio,
-        height: this.imageObj.height * ratio
+        width: this.imageObj.width * this.zoom,
+        height: this.imageObj.height * this.zoom
       });
       // add the shape to the layer
       this.layer.add(this.backgroundImage);
       // add the layer to the stage
       this.stage.add(this.layer);
 
-      this.backgroundImage.on('mousedown', this.dragMap.bind(this))
+      this.backgroundImage.on('mousedown', this.dragMap.bind(this));
     };
     this.imageObj.src = require('./test.jpg');
 
     // add the layer to the stage
     this.stage.add(this.layer);
 
-    window.addEventListener("resize", this.resize.bind(this), false);
+    window.addEventListener('resize', this.resize.bind(this), false);
+    window.addEventListener('mousewheel', this.scroll.bind(this), false);
   }
 
   render() {
