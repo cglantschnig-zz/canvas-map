@@ -3,6 +3,7 @@ import * as Konva from 'konva';
 
 export interface MapProps {
   zoom?: number;
+  maxZoomFactor?: number;
   imageUrl: string;
 }
 
@@ -36,14 +37,8 @@ export class Map extends React.Component<MapProps, undefined> {
   }
 
   static defaultProps = {
-    zoom: 0.10
-  }
-
-  reset = () => {
-    this.backgroundWidth = this.width;
-    this.backgroundHeight = this.height;
-    this.backgroundX = this.backgroundY = 0;
-    this.updateBackground();
+    zoom: 0.10,
+    maxZoomFactor: 3
   }
 
   onwheel = (e : any) => {
@@ -78,9 +73,22 @@ export class Map extends React.Component<MapProps, undefined> {
     if (deltaY < 0) {
       this.backgroundWidth += this.backgroundWidth * this.props.zoom;
       this.backgroundHeight += this.backgroundHeight * this.props.zoom;
+      // Dont let the zoom go beyond the image resolution
+      if (this.backgroundWidth > this.imageReference.width * this.props.maxZoomFactor) {
+        const downRatio = this.imageReference.width * this.props.maxZoomFactor / this.backgroundWidth;
+        this.backgroundWidth *= downRatio;
+        this.backgroundHeight *= downRatio;
+      }
     } else {
       this.backgroundWidth -= this.backgroundWidth * this.props.zoom;
       this.backgroundHeight -= this.backgroundHeight * this.props.zoom;
+    }
+
+    if (this.backgroundWidth <= this.width || this.backgroundHeight <= this.height) {
+      const fitRatio = Math.max(this.height / this.imageReference.height, this.width / this.imageReference.width);
+
+      this.backgroundHeight = this.imageReference.height * fitRatio;
+      this.backgroundWidth = this.imageReference.width * fitRatio;
     }
 
     // Take the percent offset and apply it to the new size:
@@ -88,11 +96,7 @@ export class Map extends React.Component<MapProps, undefined> {
     this.backgroundY = offsetY - (this.backgroundHeight * bgRatioY);
 
     // Prevent zooming out beyond the starting size
-    if (this.backgroundWidth <= this.width || this.backgroundHeight <= this.height) {
-      this.reset();
-    } else {
-      this.updateBackground();
-    }
+    this.updateBackground();
   }
 
   updateBackground = () => {
@@ -147,11 +151,13 @@ export class Map extends React.Component<MapProps, undefined> {
     this.height = window.innerHeight;
     this.width = window.innerWidth;
 
-    this.backgroundHeight = this.height;
-    this.backgroundWidth = this.width;
+    const fitRatio = Math.max(this.height / this.imageReference.height, this.width / this.imageReference.width);
 
-    this.backgroundX = 0;
-    this.backgroundY = 0;
+    this.backgroundHeight = this.imageReference.height * fitRatio;
+    this.backgroundWidth = this.imageReference.width * fitRatio;
+
+    this.backgroundX = (this.width - this.backgroundWidth) / 2;
+    this.backgroundY = (this.height - this.backgroundHeight) / 2;
 
     this.backgroundImage = new Konva.Image({
         x: this.backgroundX,
