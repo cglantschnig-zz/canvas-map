@@ -7,8 +7,6 @@ export interface MapProps {
   imageUrl: string;
 }
 
-// https://github.com/jackmoore/wheelzoom/blob/master/wheelzoom.js
-
 export class Map extends React.Component<MapProps, undefined> {
 
   id: string = 'test';
@@ -38,10 +36,31 @@ export class Map extends React.Component<MapProps, undefined> {
 
   static defaultProps = {
     zoom: 0.10,
-    maxZoomFactor: 3
+    maxZoomFactor: 1.2
   }
 
-  onwheel = (e : any) => {
+  onResize = (event : Event) => {
+
+    this.height = window.innerHeight;
+    this.width = window.innerWidth;
+
+    this.stage.setSize({
+      height: this.height,
+      width: this.width
+    });
+
+    // Prevent zooming out beyond the starting size
+    if (this.backgroundWidth <= this.width || this.backgroundHeight <= this.height) {
+      const fitRatio = Math.max(this.height / this.imageReference.height, this.width / this.imageReference.width);
+
+      this.backgroundHeight = this.imageReference.height * fitRatio;
+      this.backgroundWidth = this.imageReference.width * fitRatio;
+    }
+
+    this.updateBackground();
+  }
+
+  onWheel = (e : any) => {
     const event : MouseWheelEvent = e.evt;
 
     let deltaY = 0;
@@ -84,6 +103,7 @@ export class Map extends React.Component<MapProps, undefined> {
       this.backgroundHeight -= this.backgroundHeight * this.props.zoom;
     }
 
+    // Prevent zooming out beyond the starting size
     if (this.backgroundWidth <= this.width || this.backgroundHeight <= this.height) {
       const fitRatio = Math.max(this.height / this.imageReference.height, this.width / this.imageReference.width);
 
@@ -95,7 +115,6 @@ export class Map extends React.Component<MapProps, undefined> {
     this.backgroundX = offsetX - (this.backgroundWidth * bgRatioX);
     this.backgroundY = offsetY - (this.backgroundHeight * bgRatioY);
 
-    // Prevent zooming out beyond the starting size
     this.updateBackground();
   }
 
@@ -167,8 +186,9 @@ export class Map extends React.Component<MapProps, undefined> {
         height: this.backgroundHeight
     });
 
-    this.backgroundImage.on('wheel', this.onwheel.bind(this));
-    this.backgroundImage.on('mousedown', this.draggable.bind(this));
+    this.backgroundImage.on('wheel', this.onWheel);
+    this.backgroundImage.on('mousedown', this.draggable);
+    window.addEventListener('resize', this.onResize);
 
     this.stage = new Konva.Stage({
       container: this.id,
