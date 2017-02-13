@@ -27,6 +27,8 @@ export class Map extends React.Component<MapProps, undefined> {
 
   previousEvent: MouseEvent;
 
+  currentZoom: number;
+
   constructor(props : MapProps) {
     super(props);
 
@@ -131,6 +133,8 @@ export class Map extends React.Component<MapProps, undefined> {
       this.backgroundY = this.height - this.backgroundHeight;
     }
 
+    this.currentZoom = Math.max(this.backgroundHeight / this.imageReference.height, this.backgroundWidth / this.imageReference.width);
+
     this.backgroundImage
       .setAbsolutePosition({
         x: this.backgroundX,
@@ -177,6 +181,8 @@ export class Map extends React.Component<MapProps, undefined> {
 
     this.backgroundX = (this.width - this.backgroundWidth) / 2;
     this.backgroundY = (this.height - this.backgroundHeight) / 2;
+
+    this.currentZoom = fitRatio;
 
     this.backgroundImage = new Konva.Image({
         x: this.backgroundX,
