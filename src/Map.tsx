@@ -15,6 +15,7 @@ export class Map extends React.Component<MapProps, undefined> {
 
   stage: Konva.Stage;
   imageLayer: Konva.Layer;
+  contentLayer: Konva.Layer;
 
   height: number; // height of the canvas element
   width: number; // width of the canvas element
@@ -62,9 +63,7 @@ export class Map extends React.Component<MapProps, undefined> {
     this.updateBackground();
   }
 
-  onWheel = (e : any) => {
-    const event : MouseWheelEvent = e.evt;
-
+  onWheel = (event : MouseWheelEvent) => {
     let deltaY = 0;
 
     event.preventDefault();
@@ -145,10 +144,35 @@ export class Map extends React.Component<MapProps, undefined> {
         width: this.backgroundWidth
       })
       .draw();
+
+    this.contentLayer.clear();
+    this.contentLayer.setAbsolutePosition({
+      x: this.backgroundX,
+      y: this.backgroundY
+    })
+    this.contentLayer.scale({
+      x: this.currentZoom,
+      y: this.currentZoom
+    });
+    this.contentLayer.draw();
+    /*
+    this.contentLayer
+      .getChildren()
+      .each((node : Konva.Node) => {
+        node.scale({
+          x: this.currentZoom,
+          y: this.currentZoom
+        });
+        node.setAbsolutePosition({
+          x: this.backgroundX + 300 * this.currentZoom,
+          y: this.backgroundY + 300 * this.currentZoom
+        });
+        node.draw();
+      });
+    */
   }
 
-  drag = (e) => {
-    const event : MouseEvent = e.evt;
+  drag = (event : MouseEvent) => {
     event.preventDefault();
     this.backgroundX += (event.pageX - this.previousEvent.pageX);
     this.backgroundY += (event.pageY - this.previousEvent.pageY);
@@ -157,17 +181,16 @@ export class Map extends React.Component<MapProps, undefined> {
   }
 
   removeDrag = () => {
-    this.backgroundImage.off('mousemove');
-    this.backgroundImage.off('mouseup');
+    window.removeEventListener('mousemove', this.drag);
+    window.removeEventListener('mouseup', this.removeDrag);
   }
 
   // Make the background draggable
-  draggable = (e) => {
-    const event : MouseEvent = e.evt;
+  draggable = (event : MouseEvent) => {
     event.preventDefault();
     this.previousEvent = event;
-    this.backgroundImage.on('mousemove', this.drag.bind(this));
-    this.backgroundImage.on('mouseup', this.removeDrag.bind(this));
+    window.addEventListener('mousemove', this.drag);
+    window.addEventListener('mouseup', this.removeDrag);
   }
 
   load = () => {
@@ -192,8 +215,8 @@ export class Map extends React.Component<MapProps, undefined> {
         height: this.backgroundHeight
     });
 
-    this.backgroundImage.on('wheel', this.onWheel);
-    this.backgroundImage.on('mousedown', this.draggable);
+    window.addEventListener('wheel', this.onWheel);
+    window.addEventListener('mousedown', this.draggable);
     window.addEventListener('resize', this.onResize);
 
     this.stage = new Konva.Stage({
@@ -202,9 +225,28 @@ export class Map extends React.Component<MapProps, undefined> {
       height: this.height
     });
     this.imageLayer = new Konva.Layer();
+    this.contentLayer = new Konva.Layer({
+      x: this.backgroundX,
+      y: this.backgroundY
+    });
+    this.contentLayer.scale({
+      x: this.currentZoom,
+      y: this.currentZoom
+    });
+
+    for (let i = 0; i < 1000; i++) {
+      this.contentLayer.add(new Konva.Rect({
+        x: Math.random() * this.imageReference.width - 50,
+        y: Math.random() * this.imageReference.height - 50,
+        width: 50,
+        height: 50,
+        fill: Konva.Util.getRandomColor()
+      }));
+    }
 
     this.imageLayer.add(this.backgroundImage);
     this.stage.add(this.imageLayer);
+    this.stage.add(this.contentLayer);
   }
 
   componentDidMount() {
