@@ -14,7 +14,7 @@ export class Map extends React.Component<MapProps, undefined> {
   imageReference: HTMLImageElement;
 
   stage: Konva.Stage;
-  layer: Konva.Layer;
+  imageLayer: Konva.Layer;
 
   height: number; // height of the canvas element
   width: number; // width of the canvas element
@@ -201,10 +201,10 @@ export class Map extends React.Component<MapProps, undefined> {
       width: this.width,
       height: this.height
     });
-    this.layer = new Konva.Layer();
+    this.imageLayer = new Konva.Layer();
 
-    this.layer.add(this.backgroundImage);
-    this.stage.add(this.layer);
+    this.imageLayer.add(this.backgroundImage);
+    this.stage.add(this.imageLayer);
   }
 
   componentDidMount() {
