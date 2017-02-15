@@ -9,16 +9,18 @@ export interface MapProps {
 
 export class Map extends React.Component<MapProps, undefined> {
 
-  id: string = 'test';
+  static canvasCounter: number = 1;
+  static shapeCounter: number = 1;
+  id: string = 'canvasMap_' + (Map.canvasCounter++);
 
   imageReference: HTMLImageElement;
 
-  stage: Konva.Stage;
-  imageLayer: Konva.Layer;
-  contentLayer: Konva.Layer;
+  stage: Konva.Stage;           // complete stage
+  imageLayer: Konva.Layer;      // layer only containing the image
+  contentLayer: Konva.Layer;    // layer containing all the content
 
-  height: number; // height of the canvas element
-  width: number; // width of the canvas element
+  height: number;               // height of the canvas element
+  width: number;                // width of the canvas element
 
   backgroundHeight: number;     // height of the image
   backgroundWidth: number;      // width of the image
@@ -26,9 +28,14 @@ export class Map extends React.Component<MapProps, undefined> {
   backgroundY: number;          // y position of the image
   backgroundImage: Konva.Image; // canvas image object
 
-  previousEvent: MouseEvent;
+  previousEvent: MouseEvent;    // last event for dragging map function
 
-  currentZoom: number;
+  currentZoom: number;          // current Zoom Level
+  drawingActive: boolean;       // currently pressed key
+  drawingPoints: number[] = []; // array of current points (x, y, x1, y1, ...) in the painting line
+
+  currentDrawing: Konva.Shape;  // current Shape used to draw
+  currentColor: string = Konva.Util.getRandomColor();
 
   constructor(props : MapProps) {
     super(props);
@@ -64,6 +71,9 @@ export class Map extends React.Component<MapProps, undefined> {
   }
 
   onWheel = (event : MouseWheelEvent) => {
+    if (this.drawingActive || this.drawingPoints.length > 0) {
+      return;
+    }
     let deltaY = 0;
 
     event.preventDefault();
@@ -119,6 +129,10 @@ export class Map extends React.Component<MapProps, undefined> {
     this.updateBackground();
   }
 
+  /**
+   * function to redraw the background
+   * this function is also responsible for updating the children
+   */
   updateBackground = () => {
     if (this.backgroundX > 0) {
       this.backgroundX = 0;
@@ -142,8 +156,8 @@ export class Map extends React.Component<MapProps, undefined> {
       .setSize({
         height: this.backgroundHeight,
         width: this.backgroundWidth
-      })
-      .draw();
+      });
+    this.imageLayer.batchDraw();
 
     this.contentLayer.clear();
     this.contentLayer.setAbsolutePosition({
@@ -155,21 +169,6 @@ export class Map extends React.Component<MapProps, undefined> {
       y: this.currentZoom
     });
     this.contentLayer.draw();
-    /*
-    this.contentLayer
-      .getChildren()
-      .each((node : Konva.Node) => {
-        node.scale({
-          x: this.currentZoom,
-          y: this.currentZoom
-        });
-        node.setAbsolutePosition({
-          x: this.backgroundX + 300 * this.currentZoom,
-          y: this.backgroundY + 300 * this.currentZoom
-        });
-        node.draw();
-      });
-    */
   }
 
   drag = (event : MouseEvent) => {
@@ -186,11 +185,61 @@ export class Map extends React.Component<MapProps, undefined> {
   }
 
   // Make the background draggable
-  draggable = (event : MouseEvent) => {
+  onMouseDown = (event : MouseEvent) => {
     event.preventDefault();
+    // if we are in drawing mode, we dont want to pan the map
+    if (this.drawingActive && this.drawingPoints.length > 0) {
+      return;
+    }
     this.previousEvent = event;
     window.addEventListener('mousemove', this.drag);
     window.addEventListener('mouseup', this.removeDrag);
+  }
+
+  onKeyDown = (event : KeyboardEvent) => {
+    if (event.shiftKey) {
+      this.drawingActive = true;
+      this.backgroundImage.on('mousedown', this.addPoint);
+      window.addEventListener('keyup', this.onKeyUp);
+    }
+    this.drawingActive = false;
+  }
+
+  onKeyUp = (event : KeyboardEvent) => {
+    this.drawingActive = false;
+    this.backgroundImage.off('mousedown');
+    window.removeEventListener('keyup', this.onKeyUp);
+    if (this.drawingPoints.length === 0) {
+      return;
+    }
+    this.contentLayer.add(new Konva.Line({
+      points: this.drawingPoints,
+      id: 'test' + (Map.shapeCounter++)
+    }));
+    this.contentLayer.draw();
+    this.drawingPoints = [];
+    this.currentColor = Konva.Util.getRandomColor();
+  }
+
+  addPoint = (e : any) => {
+    const event : MouseEvent = e.evt;
+
+    const x = (-this.backgroundX + event.pageX) / this.currentZoom;
+    const y = (-this.backgroundY + event.pageY) / this.currentZoom;
+
+    this.drawingPoints.push(x);
+    this.drawingPoints.push(y);
+
+    this.contentLayer.add(new Konva.Line({
+      points: this.drawingPoints,
+      fill: this.currentColor,
+      stroke: 'black',
+      strokeWidth: 1,
+      closed : true,
+      id: 'test' + Map.shapeCounter
+    }));
+    this.contentLayer.draw();
+
   }
 
   load = () => {
@@ -216,8 +265,9 @@ export class Map extends React.Component<MapProps, undefined> {
     });
 
     window.addEventListener('wheel', this.onWheel);
-    window.addEventListener('mousedown', this.draggable);
+    window.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('keydown', this.onKeyDown);
 
     this.stage = new Konva.Stage({
       container: this.id,
@@ -234,19 +284,16 @@ export class Map extends React.Component<MapProps, undefined> {
       y: this.currentZoom
     });
 
-    for (let i = 0; i < 1000; i++) {
-      this.contentLayer.add(new Konva.Rect({
-        x: Math.random() * this.imageReference.width - 50,
-        y: Math.random() * this.imageReference.height - 50,
-        width: 50,
-        height: 50,
-        fill: Konva.Util.getRandomColor()
-      }));
-    }
-
     this.imageLayer.add(this.backgroundImage);
     this.stage.add(this.imageLayer);
     this.stage.add(this.contentLayer);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('wheel', this.onWheel);
+    window.removeEventListener('mousedown', this.onMouseDown);
+    window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keyup', this.onKeyUp);
   }
 
   componentDidMount() {
