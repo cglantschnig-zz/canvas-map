@@ -188,7 +188,7 @@ export class Map extends React.Component<MapProps, undefined> {
   onMouseDown = (event : MouseEvent) => {
     event.preventDefault();
     // if we are in drawing mode, we dont want to pan the map
-    if (this.drawingActive && this.drawingPoints.length > 0) {
+    if (this.drawingActive || this.drawingPoints.length > 0) {
       return;
     }
     this.previousEvent = event;
@@ -199,7 +199,7 @@ export class Map extends React.Component<MapProps, undefined> {
   onKeyDown = (event : KeyboardEvent) => {
     if (event.shiftKey) {
       this.drawingActive = true;
-      this.backgroundImage.on('mousedown', this.addPoint);
+      window.addEventListener('mousedown', this.addPoint);
       window.addEventListener('keyup', this.onKeyUp);
     }
     this.drawingActive = false;
@@ -207,7 +207,7 @@ export class Map extends React.Component<MapProps, undefined> {
 
   onKeyUp = (event : KeyboardEvent) => {
     this.drawingActive = false;
-    this.backgroundImage.off('mousedown');
+    window.removeEventListener('mousedown', this.addPoint);
     window.removeEventListener('keyup', this.onKeyUp);
     if (this.drawingPoints.length === 0) {
       return;
@@ -221,8 +221,7 @@ export class Map extends React.Component<MapProps, undefined> {
     this.currentColor = Konva.Util.getRandomColor();
   }
 
-  addPoint = (e : any) => {
-    const event : MouseEvent = e.evt;
+  addPoint = (event : MouseEvent) => {
 
     const x = (-this.backgroundX + event.pageX) / this.currentZoom;
     const y = (-this.backgroundY + event.pageY) / this.currentZoom;
@@ -230,14 +229,22 @@ export class Map extends React.Component<MapProps, undefined> {
     this.drawingPoints.push(x);
     this.drawingPoints.push(y);
 
-    this.contentLayer.add(new Konva.Line({
-      points: this.drawingPoints,
-      fill: this.currentColor,
-      stroke: 'black',
-      strokeWidth: 1,
-      closed : true,
-      id: 'test' + Map.shapeCounter
-    }));
+    if (this.drawingPoints.length > 2) {
+      this.contentLayer.add(new Konva.Line({
+        points: this.drawingPoints,
+        id: 'test' + Map.shapeCounter
+      }));
+    } else {
+      this.contentLayer.add(new Konva.Line({
+        points: this.drawingPoints,
+        fill: this.currentColor,
+        stroke: 'black',
+        strokeWidth: 2,
+        closed : true,
+        opacity: 0.4,
+        id: 'test' + Map.shapeCounter
+      }));
+    }
     this.contentLayer.draw();
 
   }
