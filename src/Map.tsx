@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as Konva from 'konva';
+import { hexToRgba } from './color';
 
 export interface MapProps {
   zoom?: number;
@@ -35,7 +36,7 @@ export class Map extends React.Component<MapProps, undefined> {
   drawingPoints: number[] = []; // array of current points (x, y, x1, y1, ...) in the painting line
 
   currentDrawing: Konva.Shape;  // current Shape used to draw
-  currentColor: string = Konva.Util.getRandomColor();
+  currentColor: string = hexToRgba(Konva.Util.getRandomColor(), 0.4);
 
   constructor(props : MapProps) {
     super(props);
@@ -46,7 +47,7 @@ export class Map extends React.Component<MapProps, undefined> {
 
   static defaultProps = {
     zoom: 0.10,
-    maxZoomFactor: 1.2
+    maxZoomFactor: 5
   }
 
   onResize = (event : Event) => {
@@ -218,7 +219,7 @@ export class Map extends React.Component<MapProps, undefined> {
     }));
     this.contentLayer.draw();
     this.drawingPoints = [];
-    this.currentColor = Konva.Util.getRandomColor();
+    this.currentColor = hexToRgba(Konva.Util.getRandomColor(), 0.4);
   }
 
   addPoint = (event : MouseEvent) => {
@@ -241,8 +242,8 @@ export class Map extends React.Component<MapProps, undefined> {
         stroke: 'black',
         strokeWidth: 2,
         closed : true,
-        opacity: 0.4,
-        id: 'test' + Map.shapeCounter
+        id: 'test' + Map.shapeCounter,
+        lineJoin: 'round'
       }));
     }
     this.contentLayer.draw();
