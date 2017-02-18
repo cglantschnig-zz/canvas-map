@@ -1,6 +1,12 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {Map} from './Map';
+import createStore from './store/createStore';
+import AppContainer from './containers/AppContainer';
+
+// ========================================================
+// Store Instantiation
+// ========================================================
+const store = createStore();
 
 // ========================================================
 // Render Setup
@@ -8,8 +14,10 @@ import {Map} from './Map';
 const MOUNT_NODE = document.getElementById('root');
 
 let render = () => {
+  const routes = require('./routes/index').default(store);
+
   ReactDOM.render(
-    <Map imageUrl={require('./test.jpg')} />,
+    <AppContainer store={store} routes={routes} />,
     MOUNT_NODE
   );
 };

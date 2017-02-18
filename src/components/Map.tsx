@@ -1,11 +1,11 @@
 import * as React from 'react';
 import * as Konva from 'konva';
-import { hexToRgba } from './color';
+import { hexToRgba } from '../utils/color';
 
 export interface MapProps {
   zoom?: number;
   maxZoomFactor?: number;
-  imageUrl: string;
+  imageUrl?: string;
 }
 
 export class Map extends React.Component<MapProps, undefined> {
@@ -42,7 +42,7 @@ export class Map extends React.Component<MapProps, undefined> {
     super(props);
 
     this.imageReference = new Image();
-    this.imageReference.src = props.imageUrl;
+    this.imageReference.src = props.imageUrl || require('./test.jpg');
   }
 
   static defaultProps = {
@@ -318,3 +318,7 @@ export class Map extends React.Component<MapProps, undefined> {
     );
   }
 }
+
+export default {
+  component : Map
+};
