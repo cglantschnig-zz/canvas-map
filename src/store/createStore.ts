@@ -1,20 +1,22 @@
 import { applyMiddleware, compose, createStore, combineReducers } from 'redux';
-import * as thunk from 'redux-thunk';
+import thunk from 'redux-thunk';
 import { browserHistory } from 'react-router';
-import locationReducer from './location';
+import locationReducer from '../reducers/location';
+import gameReducer from '../reducers/location';
 
 export default (initialState = {}) => {
   // ======================================================
   // Middleware Configuration
   // ======================================================
-  const middleware = [thunk.default];
+  const middleware = [thunk];
 
   // ======================================================
   // Store Instantiation and HMR Setup
   // ======================================================
   const store = createStore(
     combineReducers({
-      location: locationReducer
+      location: locationReducer,
+      game: gameReducer
     }),
     initialState,
     compose(
