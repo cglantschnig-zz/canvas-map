@@ -1,8 +1,7 @@
 import { applyMiddleware, compose, createStore, combineReducers } from 'redux';
 import thunk from 'redux-thunk';
 import { browserHistory } from 'react-router';
-import locationReducer from '../reducers/location';
-import gameReducer from '../reducers/location';
+import makeRootReducer from './reducers';
 
 export default (initialState = {}) => {
   // ======================================================
@@ -11,18 +10,17 @@ export default (initialState = {}) => {
   const middleware = [thunk];
 
   // ======================================================
-  // Store Instantiation and HMR Setup
+  // Store Instantiation
   // ======================================================
   const store = createStore(
-    combineReducers({
-      location: locationReducer,
-      game: gameReducer
-    }),
+    (<any>makeRootReducer)(),
     initialState,
     compose(
       applyMiddleware(...middleware)
     )
   );
+
+  (<any>store).asyncReducers = {};
 
   return store;
 }

@@ -19,16 +19,27 @@ interface ReducerMapState {
 // ------------------------------------
 // Constants
 // ------------------------------------
+export const MAP_INIT = "game/MAP_INIT";
 
 // ------------------------------------
 // Actions
 // ------------------------------------
-
+export function initMap (imageUrl) {
+  return {
+    type    : MAP_INIT,
+    payload : imageUrl
+  };
+}
 
 // ------------------------------------
-// Specialized Action Creator
+// Action Handler
 // ------------------------------------
-
+const ACTION_HANDLERS = {
+  [MAP_INIT]: (state, action) => {
+    console.log(state);
+    return state;
+  }
+};
 
 // ------------------------------------
 // Reducer
@@ -46,5 +57,7 @@ const initialState : ReducerMapState = {
   currentZoom: 1
 };
 export default function gameReducer (state = initialState, action) {
-  return state;
+  const handler = ACTION_HANDLERS[action.type];
+
+  return handler ? handler(state, action) : state;
 }

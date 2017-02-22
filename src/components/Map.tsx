@@ -6,6 +6,7 @@ export interface MapProps {
   zoom?: number;
   maxZoomFactor?: number;
   imageUrl?: string;
+  initMap: Function;
 }
 
 export class Map extends React.Component<MapProps, undefined> {
@@ -43,6 +44,7 @@ export class Map extends React.Component<MapProps, undefined> {
 
     this.imageReference = new Image();
     this.imageReference.src = props.imageUrl || require('./test.jpg');
+    this.props.initMap(this.imageReference.src);
   }
 
   static defaultProps = {
@@ -319,6 +321,4 @@ export class Map extends React.Component<MapProps, undefined> {
   }
 }
 
-export default {
-  component : Map
-};
+export default Map;

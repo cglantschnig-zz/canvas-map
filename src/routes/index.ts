@@ -1,6 +1,6 @@
 // We only need to import the modules necessary for initial render
 import CoreLayout from '../layouts/CoreLayout';
-import Map from '../components/Map';
+import MapRoute from '../components/';
 
 /*  Note: Instead of using JSX, we recommend using react-router
     PlainRoute objects to build route definitions.   */
@@ -8,7 +8,7 @@ import Map from '../components/Map';
 export const createRoutes = (store) => ({
   path        : '/',
   component   : CoreLayout,
-  indexRoute  : Map
+  indexRoute  : MapRoute(store)
 });
 
 export default createRoutes;
